@@ -108,11 +108,10 @@ class _HMM():
                     tf.log(tf.reduce_sum(tf.exp(l_alpha), keep_dims=True)))
 
                 # Update forward matrix
-                tf.scatter_update(
+                self._ln_scale = tf.scatter_update(
                     self._ln_scale, tf.constant([t]), tf.expand_dims(l_scale, 0))
-                tf.scatter_update(
-                    self._ln_alpha, tf.constant([t]),
-                    tf.expand_dims(l_alpha + l_scale, 0))
+                self._ln_alpha = tf.scatter_update(
+                    self._ln_alpha, tf.constant([t]), tf.expand_dims(l_alpha + l_scale, 0))
 
                 
     def _bwd(self, obs=None):
@@ -135,8 +134,8 @@ class _HMM():
         with tf.name_scope('Backwards_First_Step'):
             # At first backwards step, scaled beta = 1 * scale[T-1]
             b_0 = np.array([1] * self._K) * self._ln_scale[self._T-1]
-            tf.scatter_update(
-                self._ln_alpha, tf.constant([self._T-1]), tf.expand_dims(b_0,0))
+            self._ln_beta = tf.scatter_update(
+                self._ln_beta, tf.constant([self._T-1]), tf.expand_dims(b_0,0))
 
         for t in range(self._T-2, -1, -1):
             
@@ -147,7 +146,7 @@ class _HMM():
                 l_beta = log_sum_exp(l_A +  self._ln_beta[t+1, :] + l_l[t+1,:])
 
                 # Update backwards matrix
-                tf.scatter_update(
+                self._ln_beta = tf.scatter_update(
                     self._ln_beta, tf.constant([t]),
                     tf.expand_dims(l_beta + self._ln_scale[t], 0))
         
@@ -166,24 +165,25 @@ class _HMM():
             not performing batched inference, as defaults to self._obs
         """
         
-        if obs is None:
-            obs = self._obs
+        with tf.name_scope('Local_Update'):
+            if obs is None:
+                obs = self._obs
         
-        self._aux_pi = tf.assign(self._aux_pi,
-            dirichlet_expected_log_likelihood(self._var_pi))
+            self._aux_pi = tf.assign(self._aux_pi,
+                dirichlet_expected_log_likelihood(self._var_pi))
         
-        self._aux_A = tf.assign(self._aux_A,
-            dirichlet_expected_log_likelihood(self._var_A))
+            self._aux_A = tf.assign(self._aux_A,
+                dirichlet_expected_log_likelihood(self._var_A))
         
-        # Compute log-likelihoods
-        self._ln_lik = self._emission_log_likelihood(obs)
+            # Compute log-likelihoods
+            self._ln_lik = self._emission_log_likelihood(obs)
         
-        # Update forward, and backward values
-        self._fwd()
-        self._bwd()
+            # Update forward, and backward values
+            self._fwd()
+            self._bwd()
         
-        # Update the marginal belief
-        self._marginal.assign(tf.exp(self._ln_alpha + self._ln_beta))
+            # Update the marginal belief
+            self._marginal.assign(tf.exp(self._ln_alpha + self._ln_beta))
         
         
     def _emission_log_likelihood(self):

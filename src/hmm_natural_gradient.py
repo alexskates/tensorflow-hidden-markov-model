@@ -128,8 +128,6 @@ class VB_HMM(_HMM):
             
             def body_fn(i):
                 tf.Print(i, [i], 'Iteration')
-                
-                with tf.name_scope('Local_Update'):
                     self._local_update()
                 
                 with tf.name_scope('Global_Update'):
@@ -164,8 +162,10 @@ class VB_HMM(_HMM):
         
         with tf.Session() as sess:
             counter, converged = self._fit()
-            print('test1')
             sess.run(tf.global_variables_initializer())
+            
+            
+            
             
             summary_op = tf.merge_all_summaries()
             summary_writer = tf.train.SummaryWriter('Logs', graph=sess.graph)
@@ -224,33 +224,41 @@ class VB_HMM(_HMM):
         Global update for batch VI. Update the hyperparameters of the 
         variational distributions over the parameters of the HMM.
         """
-         # Initial parameter update
-        self._var_pi.assign(self._pi_0 + self._marginal[0,:])
-
-        # Transition parameter updates
-        for t in range(self._T):
-            tf.assign_add(self._var_A, 
-                          tf.matmul(tf.expand_dims(self._marginal[t-1,:],-1),
-                          tf.expand_dims(self._marginal[t,:],0)))
-
-        # Emission parameter updates
-        # Get the expected sufficient statistics
-        t_1, t_2, t_3, t_4 = niw_sufficient_statistics(self._obs, self._marginal)
         
-        for k in range(self._K):
+        with tf.name_scope('Global_Update'):
+        
+             # Initial parameter update
+            self._var_pi = tf.assign(self._pi_0 + self._marginal[0,:])
+
+            # Transition parameter updates
+            for t in range(self._T):
+                self._var_A = tf.assign_add(
+                    self._var_A, tf.matmul(tf.expand_dims(self._marginal[t-1,:],-1),
+                                           tf.expand_dims(self._marginal[t,:],0)))
+
+            # Emission parameter updates
+            # Get the expected sufficient statistics
+            t_1, t_2, t_3, t_4 = niw_sufficient_statistics(self._obs, self._marginal)
+        
+            for k in range(self._K):
             
-            # Get prior parameters and convert to natural form
-            u_1, u_2, u_3, u_4 = NIW_moment_to_natural(self._mu_0[k], self._Sigma_0[k],
-                                                       self._k_0[k], self._v_0[k])
-            # Update the hyperparameters of the emission distributions.
-            w_1 = u_1 + t_1[k]
-            w_2 = u_2 + t_2[k]
-            w_3 = u_3 + t_3[k]
-            w_4 = u_4 + t_4[k]
+                # Get prior parameters and convert to natural form
+                u_1, u_2, u_3, u_4 = NIW_moment_to_natural(self._mu_0[k], self._Sigma_0[k],
+                                                           self._k_0[k], self._v_0[k])
+                # Update the hyperparameters of the emission distributions.
+                w_1 = u_1 + t_1[k]
+                w_2 = u_2 + t_2[k]
+                w_3 = u_3 + t_3[k]
+                w_4 = u_4 + t_4[k]
             
-            mu, sigma, kappa, nu = niw_natural_to_moment(w_1, w_2, w_3, w_4)
+                mu, sigma, kappa, nu = niw_natural_to_moment(w_1, w_2, w_3, w_4)
             
-            tf.scatter_update(self._var_mu, tf.constant([k]), tf.expand_dims(mu, 0))
-            tf.scatter_update(self._var_Sigma, tf.constant([k]), tf.expand_dims(sigma, 0))
-            tf.scatter_update(self._var_k, tf.constant([k]), tf.expand_dims(kappa, 0))
-            tf.scatter_update(self._var_v, tf.constant([k]), tf.expand_dims(nu, 0))
+                self._var_mu = tf.scatter_update(
+                    self._var_mu, tf.constant([k]), tf.expand_dims(mu, 0))
+                self._var_Sigma = tf.scatter_update(
+                    self._var_Sigma, tf.constant([k]), tf.expand_dims(sigma, 0))
+                self._var_k = tf.scatter_update(
+                    self._var_k, tf.constant([k]), tf.expand_dims(kappa, 0))
+                self._var_v = tf.scatter_update(
+                    self._var_v, tf.constant([k]), tf.expand_dims(nu, 0))
+                
