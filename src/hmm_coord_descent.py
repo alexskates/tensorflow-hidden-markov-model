@@ -2,7 +2,7 @@ import numpy as np
 from src.hmm_base_class import _HMM
 from copy import deepcopy
 
-_epsilon = 1.0e-8
+_epsilon = 1.0e-10
 
 class VB_HMM(_HMM):
     
@@ -101,7 +101,7 @@ class VB_HMM(_HMM):
             
             lb = self._lower_bound()
             converged = np.absolute(lb - self._elbo) < self._epsilon
-            print("Current lb: {} Previous lb: {}".format(lb, self._elbo))
+            #print("Current lb: {} Previous lb: {}".format(lb, self._elbo))
             self._elbo = lb
             
             lb_array[i] = lb
@@ -160,6 +160,7 @@ class VB_HMM(_HMM):
         self._var_pi = self._pi_0 + self._marginal[0]
 
         # Transition parameter updates
+        self._var_A = self._A_0.copy()
         for t in range(1, self._T):
             self._var_A += np.outer(self._marginal[t-1], self._marginal[t])
 

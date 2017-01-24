@@ -72,7 +72,7 @@ class _HMM():
         for t in range(1, self._T):
             # Log sum exp trick for matrix multiplication in log space
             self._ln_alpha[t] = np.logaddexp.reduce(
-                self._ln_alpha[t-1] + self._aux_A.T, axis=1) + self._ln_lik[0]
+                self._ln_alpha[t-1] + self._aux_A.T, axis=1) + self._ln_lik[t]
 
                 
     def _bwd(self, obs=None):
@@ -90,7 +90,7 @@ class _HMM():
             obs = self._obs
         
         # At first backwards step, beta = 1, so log beta = 0
-        self._ln_beta[self._T-1] = 0
+        self._ln_beta[self._T-1] = 0.
 
         for t in range(self._T-2, -1, -1):
             self._ln_beta[t] = np.logaddexp.reduce(
@@ -116,6 +116,7 @@ class _HMM():
         
         self._aux_pi = dirichlet_expected_log_likelihood(self._var_pi)
         self._aux_A = dirichlet_expected_log_likelihood(self._var_A)
+        
         self._ln_lik = self._emission_log_likelihood(obs)
         
         # Update forward, and backward values
