@@ -117,6 +117,12 @@ class _HMM():
         self._aux_pi = dirichlet_expected_log_likelihood(self._var_pi)
         self._aux_A = dirichlet_expected_log_likelihood(self._var_A)
         
+        """self._aux_pi = np.log(np.array([0.3, 0.3, 0.4]))
+        self._aux_A = np.log(np.array([
+            [0.97, 0.03, 1e-8],
+            [1e-8, 0.97, 0.03],
+            [0.03,1e-8, 0.97]]))"""
+        
         self._ln_lik = self._emission_log_likelihood(obs)
         
         # Update forward, and backward values
