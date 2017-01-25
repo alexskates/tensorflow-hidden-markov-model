@@ -99,10 +99,9 @@ class _HMM():
         
     def _local_update(self, obs=None):
         """
-        Local updates. Creating modified parameters (auxillary parameters)
-        for running the forward-backwards algorithm on. Obs parameter
-        defaults to the entire set of observations, for in the case of batch
-        VB.
+        Use the current distributions over model parameters to calculate 
+        local updates. Obs parameter defaults to the entire set of 
+        observations, for in the case of batch VB.
         
         Parameters
         ==========
@@ -114,15 +113,9 @@ class _HMM():
         if obs is None:
             obs = self._obs
         
+        # Expectation wrt variational distributions of global params
         self._aux_pi = dirichlet_expected_log_likelihood(self._var_pi)
         self._aux_A = dirichlet_expected_log_likelihood(self._var_A)
-        
-        """self._aux_pi = np.log(np.array([0.3, 0.3, 0.4]))
-        self._aux_A = np.log(np.array([
-            [0.97, 0.03, 1e-8],
-            [1e-8, 0.97, 0.03],
-            [0.03,1e-8, 0.97]]))"""
-        
         self._ln_lik = self._emission_log_likelihood(obs)
         
         # Update forward, and backward values
